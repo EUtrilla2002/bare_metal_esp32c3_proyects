@@ -4,8 +4,8 @@ Thanks to online recouses from THA: https://tha.de/homes/hhoegl/home/es2/Elektor
 
 And https://github.com/cpq/bare-metal-programming-guide
 
-# In order to build this firmware,Install docker
-
+# In order to build this firmware:
+- Install docker
 - Install esputil from https://github.com/cpq/esputil
 
 Use any ESP32-C3 board, for example ESP32-C3-DevKITM-1.
