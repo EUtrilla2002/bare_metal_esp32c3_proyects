@@ -38,6 +38,19 @@ delay_us:
     bnez t0, 1b
     ret
 #---Interrupts
+gpio_clear_interrupt:
+    # a0 = pin
+    li t0, GPIO_BASE
+    addi t0, t0, 0x44
+    lw t1, 0(t0)
+    li t2, 1
+    sll t2, t2, a0   # BIT(pin)
+    not t0, t0      # ~BIT(pin)
+    and t1, t1, t0  #t1 & ~(1 << pin) Clear pin
+    sw t1, 0(t0)
+    ret
+
+
 cpu_alloc_interrupt:
     #Save all save registers, just in case
     addi sp, sp, -12
@@ -55,7 +68,7 @@ cpu_alloc_interrupt:
     li t3, 1             # t3 = no = 1 (inicio del bucle)
 loop_bits:
     li t5, 31
-    bge t3, t5, no_free # si no >= 31, terminar con 0
+    bge t3, t5, no_free # si no >= 31, todas las interrupciones están cogidas
 
     sll t4, t2, t3      # t4 = 1 << t3
     and t5, t1, t4      # t5 = allocated & (1 << t3)
@@ -130,27 +143,23 @@ gpio_set_irq_handler:
     sw t2, 8(t0)     # *(t0 + 8) = gpio_clear_interrupt
     sw s0, 12(t0)    # *(t0 + 12) = pin (s0)
 
-    # (3) Enable edge interrupt for the pin = REG(C3_INTERRUPT)[0xf8 / 4] |= BIT(16); 
-    li t0, INTERRUPT_BASE
-    addi t0, t0, 0xF8
-    lw t1, 0(t0)
-    li t2, 1
-    slli t2, t2, 16 #BIT(16)
-    or t1, t1, t2
-    sw t1, 0(t0) 
-
-    # (4) Set priority for the interrupt = REG(C3_GPIO)[0x74 / 4 + pin] |= (3U << 7) | BIT(13); 
+    # (3) Set characteristics for the interrupt = REG(C3_GPIO)[0x74 / 4 + pin] |= (3U << 7) | BIT(13); 
     li t0, GPIO_BASE
     addi t0, t0, 0x74
     slli t1, s0, 2 #t1 = pin * 4
     add t0, t0, t1 #t0 = &REG(C3_GPIO)[0x74 / 4 + pin]
     lw t2, 0(t0)
-    li t3, 0x2180 # t3 = (3U << 7) | BIT(13)
+    # li t3, 0x2180 # t3 = (3U << 7) | BIT(13)
+    li t3, 3         # t3 = 3
+    slli t3, t3, 7   # t3 = 3 << 7 = 0x180
+    li t4, 1         # t4 = 1
+    slli t4, t4, 13  # t4 = 1 << 13 = 0x2000
+    or t3, t3, t4    # t3 = t3 | t4 = 0x180 | 0x2000 = 0x2180
     or t2, t2, t3 #valor REG(C3_GPIO)[0x74 / 4 + pin] |= t3
     sw t2, 0(t0)
-    #(5)Map GPIO IRQ to CPU
+    # (4) Map GPIO IRQ to CPU
     li t0, INTERRUPT_BASE
-    addi t0, t0, 0x40
+    addi t0, t0, 0x40 #GPIO_INTERRUPT_PRO_MAP_REG
     sw s3, 0(t0)
     ret
 ##---ISR and main part---

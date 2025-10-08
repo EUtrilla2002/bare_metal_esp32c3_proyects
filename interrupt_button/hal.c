@@ -39,6 +39,17 @@ int gpio_read(int pin) {
 
 void gpio_clear_interrupt(void *param) {
   uint16_t pin = (uint16_t) (uintptr_t) param;
-  GPIO->STATUS &= ~BIT(pin);
+  //GPIO->STATUS &= ~BIT(pin);
   //printf("clearing pin %d irq\n", pin);
+  asm volatile(
+    "li t0, 1\n"                // t0 = 1
+    "sll t0, t0, %1\n"          // t0 = 1 << pin
+    "not t0, t0\n"              // t0 = ~(1 << pin)
+    "lw t1, 0(%0)\n"            // t1 = GPIO->STATUS
+    "and t1, t1, t0\n"          // t1 = t1 & ~(1 << pin)
+    "sw t1, 0(%0)\n"            // GPIO->STATUS = t1
+    :                           // No output
+    : "r"(&GPIO->STATUS), "r"(pin) // Inputs
+    : "t0", "t1"                // Clobbered registers
+  );
 }
