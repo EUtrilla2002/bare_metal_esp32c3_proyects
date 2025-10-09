@@ -5,7 +5,9 @@ systimer_tick:
 allocated:
     .word 0  
 msg_tick:
-    .string "tick\n"
+    .string "Hi!!! \n"
+msg_dev:
+    .string "Here\n"     
 
 
 .section .text
@@ -13,7 +15,6 @@ msg_tick:
     .equ BUTTON_PIN, 9
     .equ LED_PIN, 2
     .equ INTERRUPT_BASE, 0x600c2000
-    .equ GPIO_BASE, 0x60004000
     .equ SYSTIMER_BASE, 0x60023000
 
     .global main
@@ -91,6 +92,8 @@ systimer_init:
     # Arguments: a0 = period
     mv s0, a0 
     # (1) Configure timer
+    addi sp, sp, -4      # Reserva espacio en la pila
+    sw ra, 0(sp)         # Guarda ra
     # SYSTIMER->TARGET0_CONF = BIT(30) | 16000; Set period
     li t0, SYSTIMER_BASE
     addi t0, t0, 0x034 #SYSTIMER_TARGET0_CONF_REG
@@ -138,21 +141,27 @@ systimer_init:
     mv t2, s1 #no
     sw t2, 0(t0)
 
+    lw ra, 0(sp)         # Restaura ra
+    addi sp, sp, 4       # Libera espacio de la pila
+
     jr ra
 
 ##---ISR---
 timer_handler:
-    lw t0, systimer_tick
-    addi t0, t0, 1
+    la t0, systimer_tick
+    lw t1, 0(t0)
+    addi t1, t1, 1
+    sw t1, 0(t0)
 
-    addi sp, sp, -4      # Reserva espacio en la pila
-    sw ra, 0(sp)         # Guarda ra
+    # addi sp, sp, -4      # Reserva espacio en la pila
+    # sw ra, 0(sp)         # Guarda ra
 
-    la a0, msg_tick      # a0 = dirección del string
-    call printf          # llama a printf("tick\n")
+    # la a0, msg_tick      # a0 = dirección del string
+    # mv a1, t1
+    # call printf          # llama a printf("tick\n")
 
-    lw ra, 0(sp)         # Restaura ra
-    addi sp, sp, 4       # Libera espacio de la pila
+    # lw ra, 0(sp)         # Restaura ra
+    # addi sp, sp, 4       # Libera espacio de la pila
 
     jr ra
 
@@ -164,9 +173,29 @@ systimer_clear_interrupt:
    sw t2, 0(t0)  
    jr ra 
 
+
+print_function:
+    addi sp, sp,-4
+    sw ra,0(sp)
+    la a0, msg_tick
+    call printf
+    li t0, 0                # t0 = 0
+    la t1, systimer_tick    # t1 = &systimer_tick
+    sw t0, 0(t1)            # systimer_tick = 0
+    lw ra,0(sp)
+    addi sp, sp,4
+    jr ra
+
+log_task:
+    lw t0, systimer_tick
+    li t1, 1000 #1 s
+    bge t0,t1, print_function
+    j log_task
+
 main: 
     li a0, 16000
     jal ra, systimer_init
+    j log_task
 
 loop:
     j loop
