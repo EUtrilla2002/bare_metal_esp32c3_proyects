@@ -27,16 +27,6 @@ allocated_msg:
     .extern gpio_set_irq_handler
     .extern gpio_read
 
-delay_us:
-    mv t0, a0        # guardar número de us
-1:  # loop
-    addi t1, zero, 160  # aproximación de ciclos por us (depende de frecuencia CPU)
-2:  # inner loop
-    addi t1, t1, -1
-    bnez t1, 2b
-    addi t0, t0, -1
-    bnez t0, 1b
-    ret
 #---Interrupts
 gpio_clear_interrupt:
     # a0 = pin
@@ -164,24 +154,27 @@ gpio_set_irq_handler:
     ret
 ##---ISR and main part---
 button_handler:
-    # Lee el estado del botón
+    addi sp, sp, -4         
+    sw ra, 0(sp)            
+
     li a0, BUTTON_PIN
-    call gpio_read
-    beqz a0, use_released
-use_pressed:
+    call gpio_read          
+
+    beqz a0, use_released   
     la a1, pressed_msg
-    j do_printf
+    j do_printf             
+
 use_released:
     la a1, released_msg
+
 do_printf:
-    la a0, fmt_button
-    mv a1, a1          # mensaje "pressed"/"released"        
+    la a0, fmt_button        
     call printf
 
-    # Restaurar stack y retornar
-    lw ra, 12(sp)
-    addi sp, sp, 16
-    ret 
+    lw ra, 0(sp)             
+    addi sp, sp, 4           
+    ret        
+
 
 main:
     # Llamar gpio_input(BUTTON_PIN)
@@ -199,6 +192,4 @@ main:
 
 
 loop:
-    li a0, 5000       # 500 us de delay
-    call delay_us
     j loop

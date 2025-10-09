@@ -55,6 +55,7 @@ void Reset_Handler(void) {
   s_heap_start = s_brk = &_end, s_heap_end = &_eram;
   for (char *p = &_sbss; p < &_ebss;) *p++ = '\0';
   CSR_WRITE(mtvec, irqtab);  // Route all interrupts to the irq_handler()
+  soc_init();
   main();
   for (;;) (void) 0;
 }
